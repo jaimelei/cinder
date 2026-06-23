@@ -1,12 +1,18 @@
 import { Outlet } from "react-router-dom";
+import VideoPlayer from "../common/VideoPlayer";
+import { PlayerProvider } from "../../hooks/usePlayer";
 import CornerNav from "./CornerNav";
 
 export default function AppLayout() {
     return (
-        <div className="relative min-h-screen">
-            <Outlet />
+        <PlayerProvider>
+            <div className="relative min-h-screen">
+                <Outlet />
 
-            <CornerNav />
-        </div>
+                <CornerNav />
+
+                <VideoPlayer />
+            </div>
+        </PlayerProvider>
     );
 }

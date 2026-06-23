@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import VideoCard from "../../components/common/VideoCard";
 import { useCollection } from "../../hooks/useCollection";
+import { usePlayer } from "../../hooks/usePlayer";
 import CollectionHeader from "./components/CollectionHeader";
 
 export default function CollectionPage() {
@@ -12,6 +13,8 @@ export default function CollectionPage() {
         isLoading,
         error,
     } = useCollection(slug ?? "");
+
+    const { openVideo } = usePlayer();
 
     if (error) {
         return (
@@ -95,6 +98,9 @@ export default function CollectionPage() {
                                 <VideoCard
                                     key={video.id}
                                     video={video}
+                                    onClick={() =>
+                                        openVideo(video, collection.slug)
+                                    }
                                 />
                             ))}
                         </div>

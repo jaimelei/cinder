@@ -10,7 +10,6 @@ interface CollectionCardProps {
 export default function CollectionCard({
     collection,
     videoCount,
-    index,
 }: CollectionCardProps) {
     return (
         <Link
