@@ -2,15 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Hide scrollbar globally */
+/* ---------- fonts ---------- */
+
+@font-face {
+  font-family: "Bensoon";
+  src: url("./assets/fonts/bensoon.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lora";
+  src: url("./assets/fonts/lora.ttf") format("truetype");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- scrollbar ---------- */
+
 * {
   -ms-overflow-style: none;
-  /* IE and Edge */
   scrollbar-width: none;
-  /* Firefox */
 }
 
 *::-webkit-scrollbar {
   display: none;
-  /* Chrome, Safari, Opera */
+}
+
+/* ---------- lowercase rule ---------- */
+
+body {
+  text-transform: lowercase;
+}
+
+/* ---------- smooth transitions ---------- */
+
+*,
+*::before,
+*::after {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---------- selection ---------- */
+
+::selection {
+  background: hsla(20, 80%, 50%, 0.3);
+  color: hsl(30, 10%, 92%);
+}
+
+/* ---------- focus ring ---------- */
+
+:focus-visible {
+  outline: 2px solid hsl(22, 75%, 58%);
+  outline-offset: 2px;
 }
