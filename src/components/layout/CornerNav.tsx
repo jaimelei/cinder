@@ -3,7 +3,13 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { COLLECTIONS } from "../../constants/collections";
 import { useAuth } from "../../hooks/useAuth";
 
-export default function CornerNav() {
+interface CornerNavProps {
+    onSearch: () => void;
+}
+
+export default function CornerNav({
+    onSearch,
+}: CornerNavProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     const location = useLocation();
@@ -28,8 +34,8 @@ export default function CornerNav() {
                                 key={collection.slug}
                                 to={`/app/${collection.slug}`}
                                 className={`rounded-sm px-3 py-1.5 text-[13px] tracking-widest transition-colors ${isActive
-                                    ? "text-ash-50"
-                                    : "text-ash-300 hover:bg-charcoal-700 hover:text-ash-50"
+                                        ? "text-ash-50"
+                                        : "text-ash-300 hover:bg-charcoal-700 hover:text-ash-50"
                                     }`}
                             >
                                 {collection.name}
@@ -41,7 +47,10 @@ export default function CornerNav() {
                 <div className="my-3 border-t border-charcoal-600" />
 
                 <div className="flex flex-col gap-1 text-[13px] tracking-widest">
-                    <button className="rounded-sm px-3 py-1.5 text-left text-ash-300 transition hover:bg-charcoal-700 hover:text-ash-50">
+                    <button
+                        onClick={onSearch}
+                        className="rounded-sm px-3 py-1.5 text-left text-ash-300 transition hover:bg-charcoal-700 hover:text-ash-50"
+                    >
                         search
                     </button>
 
@@ -88,7 +97,13 @@ export default function CornerNav() {
                         ))}
 
                         <div className="mt-6 border-t border-charcoal-600 pt-6">
-                            <button className="block py-2 text-ash-300">
+                            <button
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    onSearch();
+                                }}
+                                className="block py-2 text-ash-300"
+                            >
                                 search
                             </button>
 
