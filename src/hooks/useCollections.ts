@@ -17,7 +17,11 @@ export function useCollections() {
                 setCollections(data);
                 setError(null);
             } catch (err) {
-                setError(err instanceof Error ? err : new Error("failed to fetch collections"));
+                setError(
+                    err instanceof Error
+                        ? err
+                        : new Error("failed to fetch collections")
+                );
             } finally {
                 setIsLoading(false);
             }

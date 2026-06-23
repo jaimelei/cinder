@@ -39,7 +39,6 @@ export default function CollectionCard({
       "
             style={{
                 backgroundImage: `linear-gradient(135deg, transparent 0%, ${collection.glowColor} 100%)`,
-                animationDelay: `${index * 80}ms`,
             }}
         >
             <h2 className="font-serif text-[1.375rem] md:text-[1.75rem] font-semibold text-ash-50">
