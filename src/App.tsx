@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import AppLayout from "./components/layout/AppLayout";
 import LandingPage from "./pages/landing-page";
+import Home from "./pages/home";
 
 export default function App() {
   return (
@@ -12,7 +13,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route
             path="/app"
-            element={<div />}
+            element={<Home />}
           />
 
           <Route
