@@ -7,10 +7,11 @@ interface CornerNavProps {
     onSearch: () => void;
 }
 
-export default function CornerNav({
-    onSearch,
-}: CornerNavProps) {
+type SyncState = "idle" | "loading" | "success" | "error";
+
+export default function CornerNav({ onSearch }: CornerNavProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [syncState, setSyncState] = useState<SyncState>("idle");
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -20,6 +21,35 @@ export default function CornerNav({
         logout();
         navigate("/");
     }
+
+    async function handleSync() {
+        if (syncState === "loading") return;
+        setSyncState("loading");
+
+        try {
+            const res = await fetch("/api/sync", { method: "POST" });
+            if (res.ok) {
+                setSyncState("success");
+            } else {
+                setSyncState("error");
+            }
+        } catch {
+            setSyncState("error");
+        } finally {
+            setTimeout(() => setSyncState("idle"), 3000);
+        }
+    }
+
+    const syncLabel =
+        syncState === "loading" ? "syncing..." :
+            syncState === "success" ? "sync requested" :
+                syncState === "error" ? "sync failed" :
+                    "sync";
+
+    const syncColor =
+        syncState === "success" ? "text-ember-400" :
+            syncState === "error" ? "text-red-400" :
+                "text-ash-300";
 
     return (
         <>
@@ -34,8 +64,8 @@ export default function CornerNav({
                                 key={collection.slug}
                                 to={`/app/${collection.slug}`}
                                 className={`rounded-sm px-3 py-1.5 text-[13px] tracking-widest transition-colors ${isActive
-                                        ? "text-ash-50"
-                                        : "text-ash-300 hover:bg-charcoal-700 hover:text-ash-50"
+                                    ? "text-ash-50"
+                                    : "text-ash-300 hover:bg-charcoal-700 hover:text-ash-50"
                                     }`}
                             >
                                 {collection.name}
@@ -54,8 +84,12 @@ export default function CornerNav({
                         search
                     </button>
 
-                    <button className="rounded-sm px-3 py-1.5 text-left text-ash-300 transition hover:bg-charcoal-700 hover:text-ash-50">
-                        sync
+                    <button
+                        onClick={handleSync}
+                        disabled={syncState === "loading"}
+                        className={`rounded-sm px-3 py-1.5 text-left transition hover:bg-charcoal-700 hover:text-ash-50 ${syncColor}`}
+                    >
+                        {syncLabel}
                     </button>
 
                     <button
@@ -107,8 +141,12 @@ export default function CornerNav({
                                 search
                             </button>
 
-                            <button className="block py-2 text-ash-300">
-                                sync
+                            <button
+                                onClick={handleSync}
+                                disabled={syncState === "loading"}
+                                className={`block py-2 ${syncColor}`}
+                            >
+                                {syncLabel}
                             </button>
 
                             <button
