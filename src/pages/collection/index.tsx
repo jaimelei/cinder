@@ -18,7 +18,7 @@ export default function CollectionPage() {
 
     if (error) {
         return (
-            <main className="min-h-screen px-page pt-20 pb-32 animate-fade-in">
+            <main className="min-h-full px-page pt-20 pb-6 animate-fade-in">
                 <p className="text-ash-300">
                     something went wrong
                 </p>
@@ -27,7 +27,7 @@ export default function CollectionPage() {
     }
 
     return (
-        <main className="min-h-screen px-page pt-20 pb-32 animate-fade-in">
+        <main className="px-page pt-20 pb-6 animate-fade-in">
             <Link
                 to="/app"
                 className="

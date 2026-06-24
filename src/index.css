@@ -58,3 +58,18 @@ body {
   outline: 2px solid hsl(22, 75%, 58%);
   outline-offset: 2px;
 }
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+#root {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}

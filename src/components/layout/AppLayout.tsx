@@ -3,7 +3,7 @@ import { Outlet, useParams } from "react-router-dom";
 import { PlayerProvider } from "../../hooks/usePlayer";
 import SearchOverlay from "../common/SearchOverlay";
 import VideoPlayer from "../common/VideoPlayer";
-import CornerNav from "./CornerNav";
+//import CornerNav from "./CornerNav";
 
 export default function AppLayout() {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -15,9 +15,9 @@ export default function AppLayout() {
             <div className="relative min-h-screen">
                 <Outlet />
 
-                <CornerNav
+                {/* <CornerNav
                     onSearch={() => setIsSearchOpen(true)}
-                />
+                /> */}
 
                 <VideoPlayer />
 

@@ -30,11 +30,7 @@ export default function Home() {
     });
 
     return (
-        <main className="min-h-screen px-page pt-20 md:pt-[80px] pb-32">
-            <h1 className="mb-12 font-serif text-xl text-ash-200">
-                your collections
-            </h1>
-
+        <main className="px-page pt-20 md:pt-[80px] pb-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
                 {mergedCollections.slice(0, visibleCount).map((collection, index) => (
                     <CollectionCard
