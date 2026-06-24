@@ -1,9 +1,36 @@
+import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import VideoCard from "../../components/common/VideoCard";
 import { useCollection } from "../../hooks/useCollection";
 import { usePlayer } from "../../hooks/usePlayer";
 import { useAuth } from "../../hooks/useAuth";
 import { useSearch } from "../../components/layout/AppLayout";
+
+function ScrollToTop() {
+    const [visible, setVisible] = useState(false);
+
+    useEffect(() => {
+        const el = document.getElementById("root");
+        if (!el) return;
+        const onScroll = () => setVisible(el.scrollTop > 300);
+        el.addEventListener("scroll", onScroll);
+        return () => el.removeEventListener("scroll", onScroll);
+    }, []);
+
+    function scrollToTop() {
+        document.getElementById("root")?.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    return (
+        <button
+            onClick={scrollToTop}
+            className={`fixed bottom-8 right-8 z-50 rounded-full border border-charcoal-600 bg-charcoal-800/90 px-4 py-2 text-sm text-ash-300 shadow-nav backdrop-blur-md transition-all duration-300 hover:text-ash-50 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+                }`}
+        >
+            ↑ top
+        </button>
+    );
+}
 
 export default function CollectionPage() {
     const { collection: slug } = useParams();
@@ -110,6 +137,8 @@ export default function CollectionPage() {
             {!isLoading && !collection && (
                 <div className="text-center text-ash-300">collection not found</div>
             )}
+
+            <ScrollToTop />
         </main>
     );
 }
