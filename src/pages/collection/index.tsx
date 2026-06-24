@@ -55,52 +55,88 @@ export default function CollectionPage() {
 
     return (
         <main className="px-page pt-8 pb-6 animate-fade-in">
-            {/* header */}
-            <header className="mb-6 flex items-baseline justify-between animate-drift-up">
-                <Link
-                    to="/app"
-                    className="flex-shrink-0 text-sm text-ash-300 hover:text-ash-50 transition-colors"
-                >
-                    ← back
-                </Link>
+            <header className="mb-6 animate-drift-up">
 
-                <div className="absolute left-1/2 -translate-x-1/2">
+                {/* md+ — three column grid */}
+                <div className="hidden md:grid grid-cols-3 items-baseline mb-2">
+                    <Link
+                        to="/app"
+                        className="text-sm text-ash-300 hover:text-ash-50 transition-colors"
+                    >
+                        ← back
+                    </Link>
+
+                    <div className="text-center">
+                        {isLoading ? (
+                            <div className="mx-auto h-6 w-40 animate-pulse rounded bg-charcoal-800" />
+                        ) : (
+                            <h1 className="font-serif text-3xl text-ash-50 md:text-4xl">
+                                {collection?.name}
+                            </h1>
+                        )}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-4 text-sm text-ash-300">
+                        <button onClick={onSearch} className="hover:text-ash-50 transition-colors">
+                            search
+                        </button>
+                        <button onClick={handleLock} className="hover:text-ash-50 transition-colors">
+                            lock
+                        </button>
+                    </div>
+                </div>
+
+                {/* md+ tagline + count */}
+                {!isLoading && collection && (
+                    <div className="hidden md:block text-center mb-8">
+                        {collection.description && (
+                            <p className="text-sm text-ash-300">{collection.description}</p>
+                        )}
+                        <p className="mt-1 text-xs tracking-wide text-ash-400">
+                            {collection.video_count} videos
+                        </p>
+                    </div>
+                )}
+
+                {/* mobile nav row */}
+                <div className="flex md:hidden items-baseline justify-between mb-6">
+                    <Link
+                        to="/app"
+                        className="text-sm text-ash-300 hover:text-ash-50 transition-colors"
+                    >
+                        ← back
+                    </Link>
+                    <div className="flex items-center gap-4 text-sm text-ash-300">
+                        <button onClick={onSearch} className="hover:text-ash-50 transition-colors">
+                            search
+                        </button>
+                        <button onClick={handleLock} className="hover:text-ash-50 transition-colors">
+                            lock
+                        </button>
+                    </div>
+                </div>
+
+                {/* mobile title + meta */}
+                <div className="md:hidden text-center mb-8">
                     {isLoading ? (
-                        <div className="h-6 w-40 animate-pulse rounded bg-charcoal-800" />
+                        <div className="mx-auto h-6 w-40 animate-pulse rounded bg-charcoal-800" />
                     ) : (
-                        <h1 className="font-serif text-3xl text-ash-50 md:text-4xl">
+                        <h1 className="font-serif text-3xl text-ash-50">
                             {collection?.name}
                         </h1>
                     )}
-                </div>
-
-                <div className="flex items-center gap-4 text-sm text-ash-300">
-                    <button
-                        onClick={onSearch}
-                        className="hover:text-ash-50 transition-colors"
-                    >
-                        search
-                    </button>
-                    <button
-                        onClick={handleLock}
-                        className="hover:text-ash-50 transition-colors"
-                    >
-                        lock
-                    </button>
+                    {!isLoading && collection && (
+                        <>
+                            {collection.description && (
+                                <p className="mt-2 text-sm text-ash-300">{collection.description}</p>
+                            )}
+                            <p className="mt-1 text-xs tracking-wide text-ash-400">
+                                {collection.video_count} videos
+                            </p>
+                        </>
+                    )}
                 </div>
             </header>
-
-            {/* tagline + count */}
-            {!isLoading && collection && (
-                <div className="mb-8 text-center">
-                    {collection.description && (
-                        <p className="text-sm text-ash-300">{collection.description}</p>
-                    )}
-                    <p className="mt-1 text-xs tracking-wide text-ash-400">
-                        {collection.video_count} videos
-                    </p>
-                </div>
-            )}
 
             {/* loading skeletons */}
             {isLoading && (
