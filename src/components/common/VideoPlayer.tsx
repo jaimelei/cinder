@@ -1,27 +1,30 @@
 import { getEmbedUrl, getRelativeDate } from "../../lib/youtube";
 import { usePlayer } from "../../hooks/usePlayer";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const MINI_W = 320;
 const MINI_H = Math.round(MINI_W * 9 / 16); // 180
 const MINI_LEFT = 24;
-const MINI_BOTTOM = 60;
+const MINI_BOTTOM = 24;
 
 export default function VideoPlayer() {
     const { currentVideo, isOpen, isMinimized, minimize, restore, close } = usePlayer();
     const iframeWrapRef = useRef<HTMLDivElement>(null);
-    const isFirstRender = useRef(true);
+    const [animating, setAnimating] = useState(false);
+    const prevMinimized = useRef(isMinimized);
 
+    // FLIP animation between full ↔ mini
     useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
+        if (prevMinimized.current === isMinimized) return;
+        prevMinimized.current = isMinimized;
 
         const el = iframeWrapRef.current;
         if (!el) return;
 
+        // Capture the "first" rect before the DOM updates paint
         const first = el.getBoundingClientRect();
+
+        setAnimating(true);
 
         requestAnimationFrame(() => {
             const last = el.getBoundingClientRect();
@@ -31,16 +34,29 @@ export default function VideoPlayer() {
             const scaleX = first.width / last.width;
             const scaleY = first.height / last.height;
 
-            if (dx === 0 && dy === 0 && scaleX === 1 && scaleY === 1) return;
+            if (dx === 0 && dy === 0 && scaleX === 1 && scaleY === 1) {
+                setAnimating(false);
+                return;
+            }
 
             el.style.transition = "none";
             el.style.transform = `translate(${dx}px, ${dy}px) scale(${scaleX}, ${scaleY})`;
             el.style.transformOrigin = "top left";
 
+            // Force reflow
             el.getBoundingClientRect();
 
             el.style.transition = "transform 400ms cubic-bezier(0.4, 0, 0.2, 1)";
             el.style.transform = "translate(0, 0) scale(1, 1)";
+
+            const handleEnd = () => {
+                el.style.transition = "";
+                el.style.transform = "";
+                el.style.transformOrigin = "";
+                setAnimating(false);
+                el.removeEventListener("transitionend", handleEnd);
+            };
+            el.addEventListener("transitionend", handleEnd, { once: true });
         });
     }, [isMinimized]);
 
@@ -48,34 +64,82 @@ export default function VideoPlayer() {
 
     return (
         <>
-            {/* backdrop */}
+            {/* backdrop — visible only in full mode */}
             <div
                 className={`fixed inset-0 z-[70] bg-charcoal-950/85 backdrop-blur-md transition-opacity duration-300 ${isMinimized ? "opacity-0 pointer-events-none" : "opacity-100"
                     }`}
                 onClick={minimize}
             />
 
-            {/* full mode — flex centered container */}
-            {!isMinimized && (
-                <div className="fixed inset-0 z-[75] flex flex-col items-center justify-center p-6 pointer-events-none overflow-hidden">
-                    <div className="w-full max-w-4xl pointer-events-auto">
-                        {/* iframe */}
+            {/* Single persistent player container */}
+            <div
+                className="fixed z-[75]"
+                style={
+                    isMinimized
+                        ? {
+                            left: MINI_LEFT,
+                            bottom: MINI_BOTTOM,
+                            width: MINI_W,
+                        }
+                        : {
+                            // Center horizontally and vertically using fixed positioning
+                            top: "50%",
+                            left: "50%",
+                            transform: animating ? undefined : "translate(-50%, -50%)",
+                            width: "100%",
+                            maxWidth: "56rem", // max-w-4xl
+                            padding: "1.5rem",
+                            pointerEvents: "none" as const,
+                        }
+                }
+            >
+                <div
+                    style={{ pointerEvents: "auto" }}
+                >
+                    {/* iframe wrapper — this is what the FLIP animation targets */}
+                    <div
+                        ref={iframeWrapRef}
+                        className={
+                            isMinimized
+                                ? "overflow-hidden rounded-t-xl"
+                                : "w-full overflow-hidden rounded-t-xl border-x border-t border-charcoal-600"
+                        }
+                    >
                         <div
-                            ref={iframeWrapRef}
-                            className="w-full overflow-hidden rounded-t-xl border-x border-t border-charcoal-600"
+                            className="w-full"
+                            style={
+                                isMinimized
+                                    ? { height: MINI_H }
+                                    : { aspectRatio: "16 / 9" }
+                            }
                         >
-                            <div className="aspect-video w-full">
-                                <iframe
-                                    src={getEmbedUrl(currentVideo.youtube_id)}
-                                    title={currentVideo.title}
-                                    allow="autoplay; encrypted-media; picture-in-picture"
-                                    allowFullScreen
-                                    className="h-full w-full"
-                                />
-                            </div>
+                            <iframe
+                                src={getEmbedUrl(currentVideo.youtube_id)}
+                                title={currentVideo.title}
+                                allow="autoplay; encrypted-media; picture-in-picture"
+                                allowFullScreen
+                                className="h-full w-full"
+                            />
                         </div>
+                    </div>
 
-                        {/* controls */}
+                    {/* Controls bar — different for each mode */}
+                    {isMinimized ? (
+                        <div className="flex items-center justify-between rounded-b-xl border border-charcoal-600 bg-charcoal-900 px-3 py-2">
+                            <button
+                                onClick={restore}
+                                className="truncate text-sm text-ash-100 hover:text-ash-50 text-left flex-1 transition-colors"
+                            >
+                                {currentVideo.title}
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); close(); }}
+                                className="ml-3 flex-shrink-0 text-xs text-ash-300 hover:text-ash-100 transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    ) : (
                         <div className="rounded-b-xl border-x border-b border-charcoal-600 bg-charcoal-900 shadow-modal p-5 space-y-3">
                             <h2 className="font-serif text-xl text-ash-50 leading-snug">
                                 {currentVideo.title}
@@ -106,49 +170,9 @@ export default function VideoPlayer() {
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
-
-            {/* mini mode */}
-            {isMinimized && (
-                <div
-                    className="fixed z-[75] overflow-hidden rounded-xl border border-charcoal-600 shadow-mini-player"
-                    style={{
-                        left: MINI_LEFT,
-                        top: `calc(100dvh - ${MINI_BOTTOM + MINI_H}px)`,
-                        width: MINI_W,
-                    }}
-                >
-                    <div
-                        ref={iframeWrapRef}
-                        style={{ height: MINI_H }}
-                    >
-                        <iframe
-                            src={getEmbedUrl(currentVideo.youtube_id)}
-                            title={currentVideo.title}
-                            allow="autoplay; encrypted-media; picture-in-picture"
-                            allowFullScreen
-                            className="h-full w-full"
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between bg-charcoal-900 px-3 py-2">
-                        <button
-                            onClick={restore}
-                            className="truncate text-sm text-ash-100 hover:text-ash-50 text-left flex-1 transition-colors"
-                        >
-                            {currentVideo.title}
-                        </button>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); close(); }}
-                            className="ml-3 flex-shrink-0 text-xs text-ash-300 hover:text-ash-100 transition-colors"
-                        >
-                            ✕
-                        </button>
-                    </div>
-                </div>
-            )}
+            </div>
         </>
     );
 }
