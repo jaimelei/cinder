@@ -499,8 +499,12 @@ async function syncCollection(
             await batchDeleteOrphanedVideos(supabase, toRemoveVideoIds);
         }
 
-        const newVideoCount = existingCVRows.length + result.inserted - result.removed;
-        await updateCollectionMeta(supabase, collection.id, newVideoCount);
+        const { count } = await supabase
+            .from("collection_videos")
+            .select("id", { count: "exact", head: true })
+            .eq("collection_id", collection.id);
+
+        await updateCollectionMeta(supabase, collection.id, count ?? 0);
     } catch (err) {
         result.error = err instanceof Error ? err.message : String(err);
     }
