@@ -3,7 +3,7 @@ import type { Collection, Video, VideoWithPosition } from "../types";
 
 export async function getCollections(): Promise<Collection[]> {
     const { data, error } = await supabase
-        .from("collections")
+        .from("cinder_collections")
         .select("*")
         .order("sort_order", { ascending: true });
 
@@ -18,7 +18,7 @@ export async function getCollectionBySlug(
     slug: string
 ): Promise<Collection | null> {
     const { data, error } = await supabase
-        .from("collections")
+        .from("cinder_collections")
         .select("*")
         .eq("slug", slug)
         .single();
@@ -34,10 +34,10 @@ export async function getCollectionVideos(
     collectionId: string
 ): Promise<VideoWithPosition[]> {
     const { data, error } = await supabase
-        .from("collection_videos")
+        .from("cinder_collection_videos")
         .select(`
       position,
-      videos (*)
+      cinder_videos (*)
     `)
         .eq("collection_id", collectionId)
         .order("position", { ascending: true });
@@ -47,7 +47,7 @@ export async function getCollectionVideos(
     }
 
     return (data ?? []).map((row: any) => ({
-        ...row.videos,
+        ...row.cinder_videos,
         position: row.position,
     }));
 }
@@ -60,13 +60,13 @@ export async function searchVideos(
 
     if (collectionId) {
         const { data, error } = await supabase
-            .from("collection_videos")
-            .select("videos(*)")
+            .from("cinder_collection_videos")
+            .select("cinder_videos(*)")
             .eq("collection_id", collectionId)
             .or(
                 `title.ilike.${pattern},channel_name.ilike.${pattern}`,
                 {
-                    referencedTable: "videos",
+                    referencedTable: "cinder_videos",
                 }
             );
 
@@ -75,12 +75,12 @@ export async function searchVideos(
         }
 
         return (data ?? []).map(
-            (row: any) => row.videos
+            (row: any) => row.cinder_videos
         );
     }
 
     const { data, error } = await supabase
-        .from("videos")
+        .from("cinder_videos")
         .select("*")
         .or(
             `title.ilike.${pattern},channel_name.ilike.${pattern}`

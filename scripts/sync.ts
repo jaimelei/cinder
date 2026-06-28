@@ -264,7 +264,7 @@ async function getCollection(
     slug: string
 ): Promise<SupabaseCollection | null> {
     const { data, error } = await supabase
-        .from("collections")
+        .from("cinder_collections")
         .select("id, slug, video_count")
         .eq("slug", slug)
         .single();
@@ -281,7 +281,7 @@ async function getCollectionVideos(
     collectionId: string
 ): Promise<SupabaseCollectionVideo[]> {
     const { data, error } = await supabase
-        .from("collection_videos")
+        .from("cinder_collection_videos")
         .select("id, video_id, position, videos(youtube_id)")
         .eq("collection_id", collectionId);
 
@@ -329,7 +329,7 @@ async function batchInsertCollectionVideos(
 ): Promise<void> {
     if (rows.length === 0) return;
     const { error } = await supabase
-        .from("collection_videos")
+        .from("cinder_collection_videos")
         .upsert(rows, { onConflict: "collection_id,video_id" });
     if (error) throw new Error(`Supabase batchInsertCollectionVideos: ${error.message}`);
 }
@@ -342,7 +342,7 @@ async function batchUpdatePositions(
     if (updates.length === 0) return;
     await Promise.all(
         updates.map(({ id, position }) =>
-            supabase.from("collection_videos").update({ position }).eq("id", id)
+            supabase.from("cinder_collection_videos").update({ position }).eq("id", id)
         )
     );
 }
@@ -354,7 +354,7 @@ async function batchRemoveCollectionVideos(
 ): Promise<void> {
     if (ids.length === 0) return;
     const { error } = await supabase
-        .from("collection_videos")
+        .from("cinder_collection_videos")
         .delete()
         .in("id", ids);
     if (error) throw new Error(`Supabase batchRemoveCollectionVideos: ${error.message}`);
@@ -369,7 +369,7 @@ async function batchDeleteOrphanedVideos(
 
     // Find which of these video_ids still have references
     const { data, error } = await supabase
-        .from("collection_videos")
+        .from("cinder_collection_videos")
         .select("video_id")
         .in("video_id", videoIds);
 
@@ -394,7 +394,7 @@ async function updateCollectionMeta(
     videoCount: number
 ): Promise<void> {
     const { error } = await supabase
-        .from("collections")
+        .from("cinder_collections")
         .update({ video_count: videoCount, updated_at: new Date().toISOString() })
         .eq("id", collectionId);
     if (error) throw new Error(`Supabase updateCollectionMeta: ${error.message}`);
@@ -500,7 +500,7 @@ async function syncCollection(
         }
 
         const { count } = await supabase
-            .from("collection_videos")
+            .from("cinder_collection_videos")
             .select("id", { count: "exact", head: true })
             .eq("collection_id", collection.id);
 
