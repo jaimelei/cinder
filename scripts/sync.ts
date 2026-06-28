@@ -52,7 +52,21 @@ interface SupabaseCollectionVideo {
     id: string;
     video_id: string;
     position: number;
-    cinder_videos: { youtube_id: string }[] | null;
+    // Supabase returns this as an OBJECT for a many-to-one join (each
+    // collection_video row points to exactly one video), not an array.
+    // Kept as a union here so the extraction helper below is the single
+    // place that has to know about both possible shapes.
+    cinder_videos: { youtube_id: string } | { youtube_id: string }[] | null;
+}
+
+/** Pulls youtube_id out of a joined cinder_videos field regardless of
+ *  whether Supabase returned it as an object or a single-element array. */
+function extractYoutubeId(
+    cinderVideos: SupabaseCollectionVideo["cinder_videos"]
+): string | undefined {
+    if (!cinderVideos) return undefined;
+    if (Array.isArray(cinderVideos)) return cinderVideos[0]?.youtube_id;
+    return cinderVideos.youtube_id;
 }
 
 interface CollectionSyncResult {
@@ -439,7 +453,7 @@ async function syncCollection(
         // Build lookup
         const existingByYoutubeId = new Map<string, SupabaseCollectionVideo>();
         for (const cv of existingCVRows) {
-            const ytId = cv.cinder_videos?.[0]?.youtube_id;
+            const ytId = extractYoutubeId(cv.cinder_videos);
             if (ytId) existingByYoutubeId.set(ytId, cv);
         }
 
