@@ -52,7 +52,7 @@ interface SupabaseCollectionVideo {
     id: string;
     video_id: string;
     position: number;
-    videos: { youtube_id: string }[] | null;
+    cinder_videos: { youtube_id: string }[] | null;
 }
 
 interface CollectionSyncResult {
@@ -282,7 +282,7 @@ async function getCollectionVideos(
 ): Promise<SupabaseCollectionVideo[]> {
     const { data, error } = await supabase
         .from("cinder_collection_videos")
-        .select("id, video_id, position, videos(youtube_id)")
+        .select("id, video_id, position, cinder_videos(youtube_id)")
         .eq("collection_id", collectionId);
 
     if (error) throw new Error(`Supabase getCollectionVideos: ${error.message}`);
@@ -309,7 +309,7 @@ async function batchUpsertVideos(
     }));
 
     const { data, error } = await supabase
-        .from("videos")
+        .from("cinder_videos")
         .upsert(rows, { onConflict: "youtube_id", ignoreDuplicates: false })
         .select("id, youtube_id");
 
@@ -381,7 +381,7 @@ async function batchDeleteOrphanedVideos(
     if (toDelete.length === 0) return;
 
     const { error: delError } = await supabase
-        .from("videos")
+        .from("cinder_videos")
         .delete()
         .in("id", toDelete);
 
@@ -439,7 +439,7 @@ async function syncCollection(
         // Build lookup
         const existingByYoutubeId = new Map<string, SupabaseCollectionVideo>();
         for (const cv of existingCVRows) {
-            const ytId = cv.videos?.[0]?.youtube_id;
+            const ytId = cv.cinder_videos?.[0]?.youtube_id;
             if (ytId) existingByYoutubeId.set(ytId, cv);
         }
 
