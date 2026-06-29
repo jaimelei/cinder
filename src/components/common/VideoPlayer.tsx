@@ -1,6 +1,7 @@
 import { getEmbedUrl, getRelativeDate } from "../../lib/youtube";
 import { usePlayer } from "../../hooks/usePlayer";
 import { useEffect, useRef, useState } from "react";
+import { deleteVideo } from "../../lib/api";
 
 const MINI_W = 320;
 const MINI_H = Math.round(MINI_W * 9 / 16); // 180
@@ -8,9 +9,10 @@ const MINI_LEFT = 24;
 const MINI_BOTTOM = 24;
 
 export default function VideoPlayer() {
-    const { currentVideo, isOpen, isMinimized, minimize, restore, close } = usePlayer();
+    const { currentVideo, isOpen, isMinimized, collectionId, minimize, restore, close } = usePlayer();
     const iframeWrapRef = useRef<HTMLDivElement>(null);
     const [animating, setAnimating] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const prevMinimized = useRef(isMinimized);
 
     // FLIP animation between full ↔ mini
@@ -59,6 +61,25 @@ export default function VideoPlayer() {
             el.addEventListener("transitionend", handleEnd, { once: true });
         });
     }, [isMinimized]);
+
+    async function handleDelete() {
+        if (!currentVideo || !collectionId || isDeleting) return;
+
+        try {
+            setIsDeleting(true);
+            await deleteVideo(currentVideo.id, collectionId);
+            window.dispatchEvent(
+                new CustomEvent("video-deleted", {
+                    detail: { videoId: currentVideo.id, collectionId },
+                })
+            );
+            close();
+        } catch (error) {
+            alert(error instanceof Error ? error.message : "failed to delete video");
+        } finally {
+            setIsDeleting(false);
+        }
+    }
 
     if (!isOpen || !currentVideo) return null;
 
@@ -155,19 +176,30 @@ export default function VideoPlayer() {
                                     </>
                                 )}
                             </div>
-                            <div className="flex gap-3 pt-1">
-                                <button
-                                    onClick={minimize}
-                                    className="rounded-md border border-charcoal-600 px-4 py-2 text-sm text-ash-200 hover:bg-charcoal-800 transition-colors"
-                                >
-                                    minimize
-                                </button>
-                                <button
-                                    onClick={close}
-                                    className="rounded-md border border-charcoal-600 px-4 py-2 text-sm text-ash-200 hover:bg-charcoal-800 transition-colors"
-                                >
-                                    close
-                                </button>
+                             <div className="flex items-center justify-between pt-1 w-full">
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={minimize}
+                                        className="rounded-md border border-charcoal-600 px-4 py-2 text-sm text-ash-200 hover:bg-charcoal-800 transition-colors"
+                                    >
+                                        minimize
+                                    </button>
+                                    <button
+                                        onClick={close}
+                                        className="rounded-md border border-charcoal-600 px-4 py-2 text-sm text-ash-200 hover:bg-charcoal-800 transition-colors"
+                                    >
+                                        close
+                                    </button>
+                                </div>
+                                {collectionId && (
+                                    <button
+                                        onClick={handleDelete}
+                                        disabled={isDeleting}
+                                        className="rounded-md border border-red-950/50 bg-red-950/10 px-4 py-2 text-sm text-red-400 hover:bg-red-950/30 hover:border-red-900/50 disabled:opacity-50 transition-colors"
+                                    >
+                                        {isDeleting ? "deleting..." : "delete"}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}

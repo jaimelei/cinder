@@ -53,7 +53,7 @@ export default function SearchOverlay({
     if (!visible) return null;
 
     function handleVideoClick(video: Video) {
-        openVideo(video, collectionSlug ?? "");
+        openVideo(video, collectionSlug, collectionId);
         onClose();
     }
 

@@ -39,6 +39,24 @@ export function useCollection(slug: string) {
         fetchCollection();
     }, [slug]);
 
+    useEffect(() => {
+        function handleVideoDeleted(event: Event) {
+            const customEvent = event as CustomEvent<{ videoId: string; collectionId: string }>;
+            const { videoId, collectionId } = customEvent.detail;
+            if (collection && collection.id === collectionId) {
+                setVideos((prev) => prev.filter((v) => v.id !== videoId));
+                setCollection((prev) =>
+                    prev ? { ...prev, video_count: Math.max(0, prev.video_count - 1) } : null
+                );
+            }
+        }
+
+        window.addEventListener("video-deleted", handleVideoDeleted);
+        return () => {
+            window.removeEventListener("video-deleted", handleVideoDeleted);
+        };
+    }, [collection]);
+
     return {
         collection,
         videos,

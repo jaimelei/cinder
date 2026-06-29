@@ -163,7 +163,7 @@ export default function CollectionPage() {
                             <VideoCard
                                 key={video.id}
                                 video={video}
-                                onClick={() => openVideo(video, collection.slug)}
+                                onClick={() => openVideo(video, collection.slug, collection.id)}
                             />
                         ))}
                     </div>

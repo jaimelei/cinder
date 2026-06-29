@@ -32,6 +32,7 @@ export interface CollectionVideo {
     collection_id: string;
     video_id: string;
     position: number;
+    playlist_item_id: string | null;
     created_at: string;
 }
 
@@ -39,6 +40,7 @@ export interface CollectionVideo {
 
 export interface VideoWithPosition extends Video {
     position: number;
+    playlist_item_id: string | null;
 }
 
 export interface PlayerState {

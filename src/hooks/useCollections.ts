@@ -30,6 +30,25 @@ export function useCollections() {
         fetchCollections();
     }, []);
 
+    useEffect(() => {
+        function handleVideoDeleted(event: Event) {
+            const customEvent = event as CustomEvent<{ videoId: string; collectionId: string }>;
+            const { collectionId } = customEvent.detail;
+            setCollections((prev) =>
+                prev.map((c) =>
+                    c.id === collectionId
+                        ? { ...c, video_count: Math.max(0, c.video_count - 1) }
+                        : c
+                )
+            );
+        }
+
+        window.addEventListener("video-deleted", handleVideoDeleted);
+        return () => {
+            window.removeEventListener("video-deleted", handleVideoDeleted);
+        };
+    }, []);
+
     return {
         collections,
         isLoading,

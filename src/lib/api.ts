@@ -37,6 +37,7 @@ export async function getCollectionVideos(
         .from("cinder_collection_videos")
         .select(`
       position,
+      playlist_item_id,
       cinder_videos (*)
     `)
         .eq("collection_id", collectionId)
@@ -49,6 +50,7 @@ export async function getCollectionVideos(
     return (data ?? []).map((row: any) => ({
         ...row.cinder_videos,
         position: row.position,
+        playlist_item_id: row.playlist_item_id,
     }));
 }
 
@@ -92,4 +94,20 @@ export async function searchVideos(
     }
 
     return data ?? [];
+}
+
+export async function deleteVideo(
+    videoId: string,
+    collectionId: string
+): Promise<void> {
+    const res = await fetch("/api/delete-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId, collectionId }),
+    });
+
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "failed to delete video");
+    }
 }

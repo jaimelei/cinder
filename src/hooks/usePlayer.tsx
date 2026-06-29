@@ -9,11 +9,13 @@ import type { Video } from "../types";
 interface PlayerContextValue {
     currentVideo: Video | null;
     collectionSlug: string | null;
+    collectionId: string | null;
     isMinimized: boolean;
     isOpen: boolean;
     openVideo: (
         video: Video,
-        collectionSlug: string
+        collectionSlug?: string | null,
+        collectionId?: string | null
     ) => void;
     minimize: () => void;
     restore: () => void;
@@ -35,15 +37,20 @@ export function PlayerProvider({
     const [collectionSlug, setCollectionSlug] =
         useState<string | null>(null);
 
+    const [collectionId, setCollectionId] =
+        useState<string | null>(null);
+
     const [isMinimized, setIsMinimized] =
         useState(false);
 
     function openVideo(
         video: Video,
-        collectionSlug: string
+        collectionSlug?: string | null,
+        collectionId?: string | null
     ) {
         setCurrentVideo(video);
-        setCollectionSlug(collectionSlug);
+        setCollectionSlug(collectionSlug ?? null);
+        setCollectionId(collectionId ?? null);
         setIsMinimized(false);
     }
 
@@ -58,26 +65,27 @@ export function PlayerProvider({
     function close() {
         setCurrentVideo(null);
         setCollectionSlug(null);
+        setCollectionId(null);
         setIsMinimized(false);
     }
 
     return (
         <PlayerContext.Provider
-    value= {{
-        currentVideo,
-            collectionSlug,
-            isMinimized,
-            isOpen: currentVideo !== null,
+            value={{
+                currentVideo,
+                collectionSlug,
+                collectionId,
+                isMinimized,
+                isOpen: currentVideo !== null,
                 openVideo,
                 minimize,
                 restore,
                 close,
-    }
-}
-  >
-    { children }
-    </PlayerContext.Provider>
-);
+            }}
+        >
+            {children}
+        </PlayerContext.Provider>
+    );
 }
 
 export function usePlayer() {
