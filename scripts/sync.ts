@@ -52,6 +52,7 @@ interface SupabaseCollectionVideo {
     id: string;
     video_id: string;
     position: number;
+    playlist_item_id: string | null;
     // Supabase returns this as an OBJECT for a many-to-one join (each
     // collection_video row points to exactly one video), not an array.
     // Kept as a union here so the extraction helper below is the single
@@ -296,7 +297,7 @@ async function getCollectionVideos(
 ): Promise<SupabaseCollectionVideo[]> {
     const { data, error } = await supabase
         .from("cinder_collection_videos")
-        .select("id, video_id, position, cinder_videos(youtube_id)")
+        .select("id, video_id, position, playlist_item_id, cinder_videos(youtube_id)")
         .eq("collection_id", collectionId);
 
     if (error) throw new Error(`Supabase getCollectionVideos: ${error.message}`);
@@ -339,7 +340,7 @@ async function batchUpsertVideos(
 /** Batch upsert collection_video join rows. */
 async function batchInsertCollectionVideos(
     supabase: SupabaseClient,
-    rows: { collection_id: string; video_id: string; position: number }[]
+    rows: { collection_id: string; video_id: string; position: number; playlist_item_id: string }[]
 ): Promise<void> {
     if (rows.length === 0) return;
     const { error } = await supabase
@@ -348,15 +349,15 @@ async function batchInsertCollectionVideos(
     if (error) throw new Error(`Supabase batchInsertCollectionVideos: ${error.message}`);
 }
 
-/** Batch update positions. */
-async function batchUpdatePositions(
+/** Batch update collection videos (position and playlist_item_id). */
+async function batchUpdateCollectionVideos(
     supabase: SupabaseClient,
-    updates: { id: string; position: number }[]
+    updates: { id: string; position: number; playlist_item_id: string }[]
 ): Promise<void> {
     if (updates.length === 0) return;
     await Promise.all(
-        updates.map(({ id, position }) =>
-            supabase.from("cinder_collection_videos").update({ position }).eq("id", id)
+        updates.map(({ id, position, playlist_item_id }) =>
+            supabase.from("cinder_collection_videos").update({ position, playlist_item_id }).eq("id", id)
         )
     );
 }
@@ -473,8 +474,8 @@ async function syncCollection(
         const videoIdMap = await batchUpsertVideos(supabase, validDetails);
 
         // Determine inserts and updates
-        const toInsert: { collection_id: string; video_id: string; position: number }[] = [];
-        const toUpdate: { id: string; position: number }[] = [];
+        const toInsert: { collection_id: string; video_id: string; position: number; playlist_item_id: string }[] = [];
+        const toUpdate: { id: string; position: number; playlist_item_id: string }[] = [];
 
         for (const item of validItems) {
             const videoId = videoIdMap.get(item.youtubeId);
@@ -482,10 +483,19 @@ async function syncCollection(
 
             const existing = existingByYoutubeId.get(item.youtubeId);
             if (!existing) {
-                toInsert.push({ collection_id: collection.id, video_id: videoId, position: item.position });
+                toInsert.push({
+                    collection_id: collection.id,
+                    video_id: videoId,
+                    position: item.position,
+                    playlist_item_id: item.playlistItemId,
+                });
                 result.inserted++;
-            } else if (existing.position !== item.position) {
-                toUpdate.push({ id: existing.id, position: item.position });
+            } else if (existing.position !== item.position || existing.playlist_item_id !== item.playlistItemId) {
+                toUpdate.push({
+                    id: existing.id,
+                    position: item.position,
+                    playlist_item_id: item.playlistItemId,
+                });
                 result.updated++;
             }
         }
@@ -504,7 +514,7 @@ async function syncCollection(
         // Execute all writes in parallel
         await Promise.all([
             batchInsertCollectionVideos(supabase, toInsert),
-            batchUpdatePositions(supabase, toUpdate),
+            batchUpdateCollectionVideos(supabase, toUpdate),
             batchRemoveCollectionVideos(supabase, toRemoveIds),
         ]);
 
