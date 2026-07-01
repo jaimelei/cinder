@@ -9,10 +9,9 @@ const MINI_LEFT = 24;
 const MINI_BOTTOM = 24;
 
 export default function VideoPlayer() {
-    const { currentVideo, isOpen, isMinimized, collectionId, minimize, restore, close } = usePlayer();
+    const { currentVideo, isOpen, isMinimized, collectionId, minimize, restore, close, startDeletingVideo, stopDeletingVideo } = usePlayer();
     const iframeWrapRef = useRef<HTMLDivElement>(null);
     const [animating, setAnimating] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
     const prevMinimized = useRef(isMinimized);
 
     // FLIP animation between full ↔ mini
@@ -63,22 +62,33 @@ export default function VideoPlayer() {
     }, [isMinimized]);
 
     async function handleDelete() {
-        if (!currentVideo || !collectionId || isDeleting) return;
+        if (!currentVideo || !collectionId) return;
 
-        try {
-            setIsDeleting(true);
-            await deleteVideo(currentVideo.id, collectionId);
-            window.dispatchEvent(
-                new CustomEvent("video-deleted", {
-                    detail: { videoId: currentVideo.id, collectionId },
-                })
-            );
-            close();
-        } catch (error) {
-            alert(error instanceof Error ? error.message : "failed to delete video");
-        } finally {
-            setIsDeleting(false);
-        }
+        const videoId = currentVideo.id;
+        const targetColId = collectionId;
+
+        // Mark as deleting immediately
+        startDeletingVideo(videoId);
+
+        // Close the player immediately
+        close();
+
+        // Perform deletion in the background
+        deleteVideo(videoId, targetColId)
+            .then(() => {
+                window.dispatchEvent(
+                    new CustomEvent("video-deleted", {
+                        detail: { videoId, collectionId: targetColId },
+                    })
+                );
+            })
+            .catch((error) => {
+                console.error("Failed to delete video in background:", error);
+                alert(error instanceof Error ? error.message : "failed to delete video");
+            })
+            .finally(() => {
+                stopDeletingVideo(videoId);
+            });
     }
 
     if (!isOpen || !currentVideo) return null;
@@ -194,10 +204,9 @@ export default function VideoPlayer() {
                                 {collectionId && (
                                     <button
                                         onClick={handleDelete}
-                                        disabled={isDeleting}
-                                        className="rounded-md border border-red-950/50 bg-red-950/10 px-4 py-2 text-sm text-red-400 hover:bg-red-950/30 hover:border-red-900/50 disabled:opacity-50 transition-colors"
+                                        className="rounded-md border border-red-950/50 bg-red-950/10 px-4 py-2 text-sm text-red-400 hover:bg-red-950/30 hover:border-red-900/50 transition-colors"
                                     >
-                                        {isDeleting ? "deleting..." : "delete"}
+                                        delete
                                     </button>
                                 )}
                             </div>

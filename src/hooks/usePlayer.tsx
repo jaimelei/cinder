@@ -12,6 +12,7 @@ interface PlayerContextValue {
     collectionId: string | null;
     isMinimized: boolean;
     isOpen: boolean;
+    deletingVideoIds: string[];
     openVideo: (
         video: Video,
         collectionSlug?: string | null,
@@ -20,6 +21,8 @@ interface PlayerContextValue {
     minimize: () => void;
     restore: () => void;
     close: () => void;
+    startDeletingVideo: (videoId: string) => void;
+    stopDeletingVideo: (videoId: string) => void;
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(
@@ -42,6 +45,17 @@ export function PlayerProvider({
 
     const [isMinimized, setIsMinimized] =
         useState(false);
+
+    const [deletingVideoIds, setDeletingVideoIds] =
+        useState<string[]>([]);
+
+    function startDeletingVideo(videoId: string) {
+        setDeletingVideoIds((prev) => [...prev, videoId]);
+    }
+
+    function stopDeletingVideo(videoId: string) {
+        setDeletingVideoIds((prev) => prev.filter((id) => id !== videoId));
+    }
 
     function openVideo(
         video: Video,
@@ -77,10 +91,13 @@ export function PlayerProvider({
                 collectionId,
                 isMinimized,
                 isOpen: currentVideo !== null,
+                deletingVideoIds,
                 openVideo,
                 minimize,
                 restore,
                 close,
+                startDeletingVideo,
+                stopDeletingVideo,
             }}
         >
             {children}

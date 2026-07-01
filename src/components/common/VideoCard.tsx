@@ -1,5 +1,6 @@
 import { getRelativeDate, getThumbnailUrl, formatDuration } from "../../lib/youtube";
 import type { Video } from "../../types";
+import { usePlayer } from "../../hooks/usePlayer";
 
 interface VideoCardProps {
     video: Video;
@@ -7,11 +8,15 @@ interface VideoCardProps {
 }
 
 export default function VideoCard({ video, onClick }: VideoCardProps) {
+    const { deletingVideoIds } = usePlayer();
+    const isDeleting = deletingVideoIds.includes(video.id);
+
     return (
         <button
             type="button"
             onClick={onClick}
-            className="
+            disabled={isDeleting}
+            className={`
                 group
                 overflow-hidden
                 rounded-md
@@ -22,12 +27,11 @@ export default function VideoCard({ video, onClick }: VideoCardProps) {
                 shadow-card
                 transition-all
                 duration-300
-                hover:-translate-y-0.5
-                hover:border-charcoal-500
-                hover:shadow-card-hover
-                active:translate-y-0
-                active:scale-[0.98]
-            "
+                ${isDeleting
+                    ? "opacity-40 pointer-events-none select-none"
+                    : "hover:-translate-y-0.5 hover:border-charcoal-500 hover:shadow-card-hover active:translate-y-0 active:scale-[0.98]"
+                }
+            `}
         >
             <div className="relative overflow-hidden">
                 <img
