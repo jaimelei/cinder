@@ -2,17 +2,47 @@ import { getEmbedUrl, getRelativeDate } from "../../lib/youtube";
 import { usePlayer } from "../../hooks/usePlayer";
 import { useEffect, useRef, useState } from "react";
 import { deleteVideo } from "../../lib/api";
+import type { CSSProperties } from "react";
 
 const MINI_W = 320;
 const MINI_H = Math.round(MINI_W * 9 / 16); // 180
 const MINI_LEFT = 24;
 const MINI_BOTTOM = 24;
 
+const OPEN_CLOSE_MS = 260;
+
 export default function VideoPlayer() {
     const { currentVideo, isOpen, isMinimized, collectionId, minimize, restore, close, startDeletingVideo, stopDeletingVideo } = usePlayer();
     const iframeWrapRef = useRef<HTMLDivElement>(null);
     const [animating, setAnimating] = useState(false);
     const prevMinimized = useRef(isMinimized);
+
+    const [shouldRender, setShouldRender] = useState(false);
+    const [animateIn, setAnimateIn] = useState(false);
+
+    const [displayVideo, setDisplayVideo] = useState(currentVideo);
+
+    useEffect(() => {
+        if (currentVideo) setDisplayVideo(currentVideo);
+    }, [currentVideo]);
+
+    useEffect(() => {
+        if (isOpen) {
+            setShouldRender(true);
+            let raf2 = 0;
+            const raf1 = requestAnimationFrame(() => {
+                raf2 = requestAnimationFrame(() => setAnimateIn(true));
+            });
+            return () => {
+                cancelAnimationFrame(raf1);
+                cancelAnimationFrame(raf2);
+            };
+        }
+
+        setAnimateIn(false);
+        const timeout = setTimeout(() => setShouldRender(false), OPEN_CLOSE_MS);
+        return () => clearTimeout(timeout);
+    }, [isOpen]);
 
     // FLIP animation between full ↔ mini
     useEffect(() => {
@@ -91,13 +121,24 @@ export default function VideoPlayer() {
             });
     }
 
-    if (!isOpen || !currentVideo) return null;
+    if (!shouldRender || !displayVideo) return null;
+
+    const showBackdrop = animateIn && !isMinimized;
+
+    const cardStyle: CSSProperties = {
+        pointerEvents: animateIn ? "auto" : "none",
+        transformOrigin: "center center",
+        willChange: "transform, opacity",
+        transition: `opacity ${OPEN_CLOSE_MS}ms cubic-bezier(0.4, 0, 0.2, 1), transform ${OPEN_CLOSE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+        opacity: animateIn ? 1 : 0,
+        transform: animateIn ? "scale(1)" : "scale(0.9)",
+    };
 
     return (
         <>
-            {/* backdrop — visible only in full mode */}
+            {/* backdrop — visible only in full mode, once opened */}
             <div
-                className={`fixed inset-0 z-[70] bg-charcoal-950/85 backdrop-blur-md transition-opacity duration-300 ${isMinimized ? "opacity-0 pointer-events-none" : "opacity-100"
+                className={`fixed inset-0 z-[70] bg-charcoal-950/85 backdrop-blur-md transition-opacity duration-300 ${showBackdrop ? "opacity-100" : "opacity-0 pointer-events-none"
                     }`}
                 onClick={minimize}
             />
@@ -124,10 +165,7 @@ export default function VideoPlayer() {
                         }
                 }
             >
-                <div
-                    style={{ pointerEvents: "auto" }}
-                >
-                    {/* iframe wrapper — this is what the FLIP animation targets */}
+                <div style={cardStyle}>
                     <div
                         ref={iframeWrapRef}
                         className={
@@ -145,8 +183,8 @@ export default function VideoPlayer() {
                             }
                         >
                             <iframe
-                                src={getEmbedUrl(currentVideo.youtube_id)}
-                                title={currentVideo.title}
+                                src={getEmbedUrl(displayVideo.youtube_id)}
+                                title={displayVideo.title}
                                 allow="autoplay; encrypted-media; picture-in-picture"
                                 allowFullScreen
                                 className="h-full w-full"
@@ -161,7 +199,7 @@ export default function VideoPlayer() {
                                 onClick={restore}
                                 className="truncate text-sm text-ash-100 hover:text-ash-50 text-left flex-1 transition-colors"
                             >
-                                {currentVideo.title}
+                                {displayVideo.title}
                             </button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); close(); }}
@@ -173,20 +211,20 @@ export default function VideoPlayer() {
                     ) : (
                         <div className="rounded-b-xl border-x border-b border-charcoal-600 bg-charcoal-900 shadow-modal p-5 space-y-3">
                             <h2 className="font-serif text-xl text-ash-50 leading-snug">
-                                {currentVideo.title}
+                                {displayVideo.title}
                             </h2>
                             <div className="flex flex-wrap items-center gap-2 text-sm text-ash-300">
-                                {currentVideo.channel_name && (
-                                    <span>{currentVideo.channel_name}</span>
+                                {displayVideo.channel_name && (
+                                    <span>{displayVideo.channel_name}</span>
                                 )}
-                                {currentVideo.upload_date && (
+                                {displayVideo.upload_date && (
                                     <>
                                         <span>·</span>
-                                        <span>{getRelativeDate(currentVideo.upload_date)}</span>
+                                        <span>{getRelativeDate(displayVideo.upload_date)}</span>
                                     </>
                                 )}
                             </div>
-                             <div className="flex items-center justify-between pt-1 w-full">
+                            <div className="flex items-center justify-between pt-1 w-full">
                                 <div className="flex gap-3">
                                     <button
                                         onClick={minimize}
