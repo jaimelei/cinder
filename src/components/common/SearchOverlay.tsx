@@ -31,11 +31,12 @@ export default function SearchOverlay({
                 requestAnimationFrame(() => setAnimating(true));
             });
         } else {
+            setQuery("");
             setAnimating(false);
             const timer = setTimeout(() => setVisible(false), 300);
             return () => clearTimeout(timer);
         }
-    }, [isOpen]);
+    }, [isOpen, setQuery]);
 
     useEffect(() => {
         if (!isOpen) return;
