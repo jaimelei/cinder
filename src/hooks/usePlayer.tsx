@@ -80,7 +80,6 @@ export function PlayerProvider({
         setCurrentVideo(null);
         setCollectionSlug(null);
         setCollectionId(null);
-        setIsMinimized(false);
     }
 
     return (
