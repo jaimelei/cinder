@@ -63,7 +63,7 @@ export async function searchVideos(
     if (collectionId) {
         const { data, error } = await supabase
             .from("cinder_collection_videos")
-            .select("cinder_videos(*)")
+            .select("cinder_videos!inner(*)")
             .eq("collection_id", collectionId)
             .or(
                 `title.ilike.${pattern},channel_name.ilike.${pattern}`,
@@ -76,9 +76,9 @@ export async function searchVideos(
             throw error;
         }
 
-        return (data ?? []).map(
-            (row: any) => row.cinder_videos
-        );
+        return (data ?? [])
+            .map((row: any) => row.cinder_videos)
+            .filter(Boolean);
     }
 
     const { data, error } = await supabase
