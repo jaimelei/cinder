@@ -14,8 +14,9 @@ const OPEN_CLOSE_MS = 260;
 export default function VideoPlayer() {
     const { currentVideo, isOpen, isMinimized, collectionId, minimize, restore, close, startDeletingVideo, stopDeletingVideo } = usePlayer();
     const iframeWrapRef = useRef<HTMLDivElement>(null);
-    const [animating, setAnimating] = useState(false);
     const prevMinimized = useRef(isMinimized);
+    const prevVideoId = useRef(currentVideo?.id);
+    const pendingRectRef = useRef<DOMRect | null>(null);
 
     const [shouldRender, setShouldRender] = useState(false);
     const [animateIn, setAnimateIn] = useState(false);
@@ -44,18 +45,32 @@ export default function VideoPlayer() {
         return () => clearTimeout(timeout);
     }, [isOpen]);
 
-    // FLIP animation between full ↔ mini
+    // FLIP animation between full ↔ mini — only when the SAME video is
+    // restoring/minimizing. If a different video just took over the player
+    // (e.g. a new video was clicked while one was already minimized), skip
+    // the morph entirely and let it render straight into its target layout.
+    //
+    // The "before" rect MUST be captured synchronously at click time, before
+    // minimize()/restore() run — by the time this effect fires, React has
+    // already committed the new layout (the container's inline styles swap
+    // instantly, no CSS transition), so reading getBoundingClientRect() here
+    // would frequently just return the new position, silently no-oping the
+    // animation. handleMinimizeClick/handleRestoreClick below populate
+    // pendingRectRef with the real "before" rect.
     useEffect(() => {
-        if (prevMinimized.current === isMinimized) return;
+        const minimizedChanged = prevMinimized.current !== isMinimized;
+        const videoChanged = prevVideoId.current !== currentVideo?.id;
+
         prevMinimized.current = isMinimized;
+        prevVideoId.current = currentVideo?.id;
+
+        const first = pendingRectRef.current;
+        pendingRectRef.current = null;
+
+        if (!minimizedChanged || videoChanged || !first) return;
 
         const el = iframeWrapRef.current;
         if (!el) return;
-
-        // Capture the "first" rect before the DOM updates paint
-        const first = el.getBoundingClientRect();
-
-        setAnimating(true);
 
         requestAnimationFrame(() => {
             const last = el.getBoundingClientRect();
@@ -66,7 +81,6 @@ export default function VideoPlayer() {
             const scaleY = first.height / last.height;
 
             if (dx === 0 && dy === 0 && scaleX === 1 && scaleY === 1) {
-                setAnimating(false);
                 return;
             }
 
@@ -84,12 +98,25 @@ export default function VideoPlayer() {
                 el.style.transition = "";
                 el.style.transform = "";
                 el.style.transformOrigin = "";
-                setAnimating(false);
                 el.removeEventListener("transitionend", handleEnd);
             };
             el.addEventListener("transitionend", handleEnd, { once: true });
         });
-    }, [isMinimized]);
+    }, [isMinimized, currentVideo?.id]);
+
+    function handleMinimizeClick() {
+        if (iframeWrapRef.current) {
+            pendingRectRef.current = iframeWrapRef.current.getBoundingClientRect();
+        }
+        minimize();
+    }
+
+    function handleRestoreClick() {
+        if (iframeWrapRef.current) {
+            pendingRectRef.current = iframeWrapRef.current.getBoundingClientRect();
+        }
+        restore();
+    }
 
     async function handleDelete() {
         if (!currentVideo || !collectionId) return;
@@ -140,7 +167,7 @@ export default function VideoPlayer() {
             <div
                 className={`fixed inset-0 z-[70] bg-charcoal-950/85 backdrop-blur-md transition-opacity duration-300 ${showBackdrop ? "opacity-100" : "opacity-0 pointer-events-none"
                     }`}
-                onClick={minimize}
+                onClick={handleMinimizeClick}
             />
 
             {/* Single persistent player container */}
@@ -157,7 +184,7 @@ export default function VideoPlayer() {
                             // Center horizontally and vertically using fixed positioning
                             top: "50%",
                             left: "50%",
-                            transform: animating ? undefined : "translate(-50%, -50%)",
+                            transform: "translate(-50%, -50%)",
                             width: "100%",
                             maxWidth: "56rem", // max-w-4xl
                             padding: "1.5rem",
@@ -196,7 +223,7 @@ export default function VideoPlayer() {
                     {isMinimized ? (
                         <div className="flex items-center justify-between rounded-b-xl border border-charcoal-600 bg-charcoal-900 px-3 py-2">
                             <button
-                                onClick={restore}
+                                onClick={handleRestoreClick}
                                 className="truncate text-sm text-ash-100 hover:text-ash-50 text-left flex-1 transition-colors"
                             >
                                 {displayVideo.title}
@@ -227,7 +254,7 @@ export default function VideoPlayer() {
                             <div className="flex items-center justify-between pt-1 w-full">
                                 <div className="flex gap-3">
                                     <button
-                                        onClick={minimize}
+                                        onClick={handleMinimizeClick}
                                         className="rounded-md border border-charcoal-600 px-4 py-2 text-sm text-ash-200 hover:bg-charcoal-800 transition-colors"
                                     >
                                         minimize
