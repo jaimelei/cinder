@@ -3,6 +3,7 @@ import VideoCard from "./VideoCard";
 import { usePlayer } from "../../hooks/usePlayer";
 import { useSearch } from "../../hooks/useSearch";
 import type { Video } from "../../types";
+import { useFocusable, FocusContext } from "@noriginmedia/norigin-spatial-navigation";
 
 interface SearchOverlayProps {
     isOpen: boolean;
@@ -24,6 +25,20 @@ export default function SearchOverlay({
     const { query, setQuery, results, isLoading } = useSearch(collectionId);
     const { openVideo } = usePlayer();
 
+    const { ref: searchOverlayRef, focusKey, focusSelf } = useFocusable({
+        isFocusBoundary: true,
+        focusable: isOpen,
+    });
+
+    const { ref: inputFocusRef, focused: inputFocused } = useFocusable({
+        focusable: isOpen,
+    });
+
+    const setInputRefs = (el: HTMLInputElement | null) => {
+        (inputRef as any).current = el;
+        (inputFocusRef as any).current = el;
+    };
+
     useEffect(() => {
         if (isOpen) {
             setVisible(true);
@@ -41,7 +56,9 @@ export default function SearchOverlay({
     useEffect(() => {
         if (!isOpen) return;
 
+        // Focus the input ref spatially/natively
         inputRef.current?.focus();
+        focusSelf();
 
         function handleEscape(event: KeyboardEvent) {
             if (event.key === "Escape") onClose();
@@ -49,7 +66,7 @@ export default function SearchOverlay({
 
         window.addEventListener("keydown", handleEscape);
         return () => window.removeEventListener("keydown", handleEscape);
-    }, [isOpen, onClose]);
+    }, [isOpen, onClose, focusSelf]);
 
     if (!visible) return null;
 
@@ -59,44 +76,48 @@ export default function SearchOverlay({
     }
 
     return (
-        <div
-            className="fixed inset-0 z-[75] bg-charcoal-950/85 backdrop-blur-md"
-            style={{
-                WebkitBackdropFilter: "blur(12px)",
-                opacity: animating ? 1 : 0,
-                transition: "opacity 300ms ease",
-            }}
-        >
-            {/* close button */}
-            <button
-                onClick={onClose}
-                className="absolute right-6 top-6 text-sm text-ash-300 hover:text-ash-50 transition-colors"
-            >
-                close
-            </button>
-
+        <FocusContext.Provider value={focusKey}>
             <div
-                className="mx-auto flex h-full max-w-5xl flex-col px-6 pt-20"
+                ref={searchOverlayRef}
+                className="fixed inset-0 z-[75] bg-charcoal-950/85 backdrop-blur-md outline-none"
                 style={{
-                    transform: animating ? "translateY(0)" : "translateY(-16px)",
-                    transition: "transform 300ms ease",
+                    WebkitBackdropFilter: "blur(12px)",
+                    opacity: animating ? 1 : 0,
+                    transition: "opacity 300ms ease",
                 }}
             >
-                {/* input */}
-                <div>
-                    <input
-                        ref={inputRef}
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="search."
-                        className="w-full rounded-xl border border-charcoal-600 bg-charcoal-800 px-5 py-4 text-ash-50 shadow-ember-glow outline-none animate-glow-pulse"
-                    />
-                    <p className="mt-3 text-center text-xs text-ash-400">
-                        {collectionSlug
-                            ? `searching in ${collectionSlug}`
-                            : "searching all collections"}
-                    </p>
-                </div>
+                {/* close button */}
+                <button
+                    onClick={onClose}
+                    className="absolute right-6 top-6 text-sm text-ash-300 hover:text-ash-50 transition-colors"
+                >
+                    close
+                </button>
+
+                <div
+                    className="mx-auto flex h-full max-w-5xl flex-col px-6 pt-20"
+                    style={{
+                        transform: animating ? "translateY(0)" : "translateY(-16px)",
+                        transition: "transform 300ms ease",
+                    }}
+                >
+                    {/* input */}
+                    <div>
+                        <input
+                            ref={setInputRefs}
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="search."
+                            className={`w-full rounded-xl border bg-charcoal-800 px-5 py-4 text-ash-50 shadow-ember-glow outline-none animate-glow-pulse ${
+                                inputFocused ? "border-ember-500 ring-2 ring-ember-500/50" : "border-charcoal-600"
+                            }`}
+                        />
+                        <p className="mt-3 text-center text-xs text-ash-400">
+                            {collectionSlug
+                                ? `searching in ${collectionSlug}`
+                                : "searching all collections"}
+                        </p>
+                    </div>
 
                 {/* results */}
                 <div className="mt-8 flex-1 overflow-y-auto">
@@ -135,5 +156,6 @@ export default function SearchOverlay({
                 </div>
             </div>
         </div>
-    );
+    </FocusContext.Provider>
+);
 }

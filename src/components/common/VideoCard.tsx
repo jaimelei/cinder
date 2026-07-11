@@ -1,18 +1,29 @@
 import { getRelativeDate, getThumbnailUrl, formatDuration } from "../../lib/youtube";
 import type { Video } from "../../types";
 import { usePlayer } from "../../hooks/usePlayer";
+import { useFocusable } from "@noriginmedia/norigin-spatial-navigation";
 
 interface VideoCardProps {
     video: Video;
     onClick?: () => void;
+    focusKey?: string;
 }
 
-export default function VideoCard({ video, onClick }: VideoCardProps) {
+export default function VideoCard({ video, onClick, focusKey }: VideoCardProps) {
     const { deletingVideoIds } = usePlayer();
     const isDeleting = deletingVideoIds.includes(video.id);
 
+    const { ref, focused } = useFocusable({
+        focusKey,
+        focusable: !isDeleting,
+        onEnterPress: () => {
+            if (onClick) onClick();
+        }
+    });
+
     return (
         <button
+            ref={ref}
             type="button"
             onClick={onClick}
             disabled={isDeleting}
@@ -21,15 +32,17 @@ export default function VideoCard({ video, onClick }: VideoCardProps) {
                 overflow-hidden
                 rounded-md
                 border
-                border-charcoal-600
                 bg-charcoal-900
                 text-left
                 shadow-card
                 transition-all
                 duration-300
-                ${isDeleting
-                    ? "opacity-40 pointer-events-none select-none"
-                    : "hover:-translate-y-0.5 hover:border-charcoal-500 hover:shadow-card-hover active:translate-y-0 active:scale-[0.98]"
+                outline-none
+                ${focused
+                    ? "border-ember-500 ring-2 ring-ember-500/50 shadow-ember-glow -translate-y-0.5"
+                    : isDeleting
+                        ? "border-charcoal-600 opacity-40 pointer-events-none select-none"
+                        : "border-charcoal-600 hover:-translate-y-0.5 hover:border-charcoal-500 hover:shadow-card-hover active:translate-y-0 active:scale-[0.98]"
                 }
             `}
         >

@@ -3,6 +3,7 @@ import { usePlayer } from "../../hooks/usePlayer";
 import { useEffect, useRef, useState } from "react";
 import { deleteVideo } from "../../lib/api";
 import type { CSSProperties } from "react";
+import { useFocusable, FocusContext, setFocus } from "@noriginmedia/norigin-spatial-navigation";
 
 const MINI_W = 320;
 const MINI_H = Math.round(MINI_W * 9 / 16); // 180
@@ -14,6 +15,7 @@ const OPEN_CLOSE_MS = 260;
 export default function VideoPlayer() {
     const { currentVideo, isOpen, isMinimized, collectionId, minimize, restore, close, startDeletingVideo, stopDeletingVideo } = usePlayer();
     const iframeWrapRef = useRef<HTMLDivElement>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
     const prevMinimized = useRef(isMinimized);
     const prevVideoId = useRef(currentVideo?.id);
     const pendingRectRef = useRef<DOMRect | null>(null);
@@ -22,6 +24,41 @@ export default function VideoPlayer() {
     const [animateIn, setAnimateIn] = useState(false);
 
     const [displayVideo, setDisplayVideo] = useState(currentVideo);
+
+    const { ref: playerWrapRef, focusKey } = useFocusable({
+        isFocusBoundary: true,
+        focusable: isOpen,
+    });
+
+    const { ref: minimizeBtnRef, focused: minimizeFocused } = useFocusable({
+        focusKey: "PLAYER_MINIMIZE",
+        focusable: isOpen && !isMinimized,
+        onEnterPress: handleMinimizeClick,
+    });
+
+    const { ref: closeBtnRef, focused: closeFocused } = useFocusable({
+        focusKey: "PLAYER_CLOSE",
+        focusable: isOpen && !isMinimized,
+        onEnterPress: close,
+    });
+
+    const { ref: deleteBtnRef, focused: deleteFocused } = useFocusable({
+        focusKey: "PLAYER_DELETE",
+        focusable: isOpen && !isMinimized && !!collectionId,
+        onEnterPress: handleDelete,
+    });
+
+    const { ref: restoreBtnRef, focused: restoreFocused } = useFocusable({
+        focusKey: "PLAYER_RESTORE",
+        focusable: isOpen && isMinimized,
+        onEnterPress: handleRestoreClick,
+    });
+
+    const { ref: miniCloseBtnRef, focused: miniCloseFocused } = useFocusable({
+        focusKey: "PLAYER_MINI_CLOSE",
+        focusable: isOpen && isMinimized,
+        onEnterPress: close,
+    });
 
     useEffect(() => {
         if (currentVideo) setDisplayVideo(currentVideo);
@@ -45,18 +82,42 @@ export default function VideoPlayer() {
         return () => clearTimeout(timeout);
     }, [isOpen]);
 
-    // FLIP animation between full ↔ mini — only when the SAME video is
-    // restoring/minimizing. If a different video just took over the player
-    // (e.g. a new video was clicked while one was already minimized), skip
-    // the morph entirely and let it render straight into its target layout.
-    //
-    // The "before" rect MUST be captured synchronously at click time, before
-    // minimize()/restore() run — by the time this effect fires, React has
-    // already committed the new layout (the container's inline styles swap
-    // instantly, no CSS transition), so reading getBoundingClientRect() here
-    // would frequently just return the new position, silently no-oping the
-    // animation. handleMinimizeClick/handleRestoreClick below populate
-    // pendingRectRef with the real "before" rect.
+    // Handle initial focus to iframe controls when opened
+    useEffect(() => {
+        if (isOpen && !isMinimized) {
+            const timer = setTimeout(() => {
+                iframeRef.current?.focus();
+            }, 600);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen, isMinimized]);
+
+    // Intercept Escape / Backspace for focus redirection and minimizing/closing
+    useEffect(() => {
+        function handleGlobalKeyDown(e: KeyboardEvent) {
+            if (e.key === "Escape" || e.key === "Backspace") {
+                if (isMinimized) {
+                    close();
+                    e.preventDefault();
+                    return;
+                }
+                if (isOpen && !isMinimized) {
+                    const isPlayerButtonFocused = minimizeFocused || closeFocused || deleteFocused;
+                    if (isPlayerButtonFocused) {
+                        handleMinimizeClick();
+                    } else {
+                        setFocus("PLAYER_MINIMIZE");
+                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }
+        }
+        window.addEventListener("keydown", handleGlobalKeyDown, { capture: true });
+        return () => window.removeEventListener("keydown", handleGlobalKeyDown, { capture: true });
+    }, [isOpen, isMinimized, close, setFocus, minimizeFocused, closeFocused, deleteFocused]);
+
+    // FLIP animation between full ↔ mini
     useEffect(() => {
         const minimizedChanged = prevMinimized.current !== isMinimized;
         const videoChanged = prevVideoId.current !== currentVideo?.id;
@@ -162,7 +223,7 @@ export default function VideoPlayer() {
     };
 
     return (
-        <>
+        <FocusContext.Provider value={focusKey}>
             {/* backdrop — visible only in full mode, once opened */}
             <div
                 className={`fixed inset-0 z-[70] bg-charcoal-950/85 backdrop-blur-md transition-opacity duration-300 ${showBackdrop ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -172,7 +233,8 @@ export default function VideoPlayer() {
 
             {/* Single persistent player container */}
             <div
-                className="fixed z-[75]"
+                ref={playerWrapRef}
+                className="fixed z-[75] outline-none"
                 style={
                     isMinimized
                         ? {
@@ -210,6 +272,7 @@ export default function VideoPlayer() {
                             }
                         >
                             <iframe
+                                ref={iframeRef}
                                 src={getEmbedUrl(displayVideo.youtube_id)}
                                 title={displayVideo.title}
                                 allow="autoplay; encrypted-media; picture-in-picture"
@@ -223,14 +286,20 @@ export default function VideoPlayer() {
                     {isMinimized ? (
                         <div className="flex items-center justify-between rounded-b-xl border border-charcoal-600 bg-charcoal-900 px-3 py-2">
                             <button
+                                ref={restoreBtnRef}
                                 onClick={handleRestoreClick}
-                                className="truncate text-sm text-ash-100 hover:text-ash-50 text-left flex-1 transition-colors"
+                                className={`truncate text-sm text-left flex-1 transition-colors outline-none rounded px-1 ${
+                                    restoreFocused ? "border border-ember-500 ring-2 ring-ember-500/50 shadow-ember-glow text-ember-400" : "text-ash-100 hover:text-ash-50"
+                                }`}
                             >
                                 {displayVideo.title}
                             </button>
                             <button
+                                ref={miniCloseBtnRef}
                                 onClick={(e) => { e.stopPropagation(); close(); }}
-                                className="ml-3 flex-shrink-0 text-xs text-ash-300 hover:text-ash-100 transition-colors"
+                                className={`ml-3 flex-shrink-0 text-xs transition-colors outline-none px-1.5 py-0.5 rounded ${
+                                    miniCloseFocused ? "border border-ember-500 ring-2 ring-ember-500/50 shadow-ember-glow text-ember-400" : "text-ash-300 hover:text-ash-100"
+                                }`}
                             >
                                 ✕
                             </button>
@@ -254,22 +323,31 @@ export default function VideoPlayer() {
                             <div className="flex items-center justify-between pt-1 w-full">
                                 <div className="flex gap-3">
                                     <button
+                                        ref={minimizeBtnRef}
                                         onClick={handleMinimizeClick}
-                                        className="rounded-md border border-charcoal-600 px-4 py-2 text-sm text-ash-200 hover:bg-charcoal-800 transition-colors"
+                                        className={`rounded-md border px-4 py-2 text-sm transition-colors outline-none ${
+                                            minimizeFocused ? "border-ember-500 ring-2 ring-ember-500/50 shadow-ember-glow text-ember-400" : "border-charcoal-600 text-ash-200 hover:bg-charcoal-800"
+                                        }`}
                                     >
                                         minimize
                                     </button>
                                     <button
+                                        ref={closeBtnRef}
                                         onClick={close}
-                                        className="rounded-md border border-charcoal-600 px-4 py-2 text-sm text-ash-200 hover:bg-charcoal-800 transition-colors"
+                                        className={`rounded-md border px-4 py-2 text-sm transition-colors outline-none ${
+                                            closeFocused ? "border-ember-500 ring-2 ring-ember-500/50 shadow-ember-glow text-ember-400" : "border-charcoal-600 text-ash-200 hover:bg-charcoal-800"
+                                        }`}
                                     >
                                         close
                                     </button>
                                 </div>
                                 {collectionId && (
                                     <button
+                                        ref={deleteBtnRef}
                                         onClick={handleDelete}
-                                        className="rounded-md border border-red-950/50 bg-red-950/10 px-4 py-2 text-sm text-red-400 hover:bg-red-950/30 hover:border-red-900/50 transition-colors"
+                                        className={`rounded-md border px-4 py-2 text-sm transition-colors outline-none ${
+                                            deleteFocused ? "border-red-500 ring-2 ring-red-500/50 shadow-ember-glow text-red-400" : "border-red-950/50 bg-red-950/10 text-red-400 hover:bg-red-950/30 hover:border-red-900/50"
+                                        }`}
                                     >
                                         delete
                                     </button>
@@ -279,6 +357,6 @@ export default function VideoPlayer() {
                     )}
                 </div>
             </div>
-        </>
+        </FocusContext.Provider>
     );
 }

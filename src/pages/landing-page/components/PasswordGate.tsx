@@ -43,6 +43,7 @@ export default function PasswordGate() {
             <input
                 type="password"
                 placeholder="enter quietly"
+                autoFocus
                 value={password}
                 disabled={isLoading}
                 onChange={(e) => setPassword(e.target.value)}
