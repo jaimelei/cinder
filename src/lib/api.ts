@@ -111,3 +111,13 @@ export async function deleteVideo(
         throw new Error(errData.error || "failed to delete video");
     }
 }
+
+export async function getMyVideos(): Promise<Video[]> {
+    const res = await fetch("/api/my-videos");
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "failed to fetch uploaded videos");
+    }
+    const data = await res.json();
+    return data.videos ?? [];
+}

@@ -4,6 +4,7 @@ import AppLayout from "./components/layout/AppLayout";
 import LandingPage from "./pages/landing-page";
 import Home from "./pages/home";
 import CollectionPage from "./pages/collection";
+import ConcertsPage from "./pages/concerts";
 
 export default function App() {
   return (
@@ -15,6 +16,11 @@ export default function App() {
           <Route
             path="/app"
             element={<Home />}
+          />
+
+          <Route
+            path="/app/concerts"
+            element={<ConcertsPage />}
           />
 
           <Route
