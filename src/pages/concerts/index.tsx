@@ -36,13 +36,13 @@ function ScrollToTop() {
 export default function ConcertsPage() {
     const { videos, isLoading, error } = useMyVideos();
     const { openVideo } = usePlayer();
-    const { logout } = useAuth();
+    const { isAuthenticated, logoutConcerts } = useAuth();
     const { onSearch } = useSearch();
     const navigate = useNavigate();
 
     function handleLock() {
-        logout();
-        navigate("/");
+        logoutConcerts();
+        navigate("/app/concerts");
     }
 
     if (error) {
@@ -58,12 +58,16 @@ export default function ConcertsPage() {
             <header className="mb-6 animate-drift-up">
                 {/* md+ — three column grid */}
                 <div className="hidden md:grid grid-cols-3 items-baseline mb-2">
-                    <Link
-                        to="/app"
-                        className="text-sm text-ash-300 hover:text-ash-50 transition-colors"
-                    >
-                        ← back
-                    </Link>
+                    {isAuthenticated ? (
+                        <Link
+                            to="/app"
+                            className="text-sm text-ash-300 hover:text-ash-50 transition-colors"
+                        >
+                            ← back
+                        </Link>
+                    ) : (
+                        <div />
+                    )}
 
                     <div className="text-center">
                         {isLoading ? (
@@ -97,12 +101,16 @@ export default function ConcertsPage() {
 
                 {/* mobile nav row */}
                 <div className="flex md:hidden items-baseline justify-between mb-6">
-                    <Link
-                        to="/app"
-                        className="text-sm text-ash-300 hover:text-ash-50 transition-colors"
-                    >
-                        ← back
-                    </Link>
+                    {isAuthenticated ? (
+                        <Link
+                            to="/app"
+                            className="text-sm text-ash-300 hover:text-ash-50 transition-colors"
+                        >
+                            ← back
+                        </Link>
+                    ) : (
+                        <div />
+                    )}
                     <div className="flex items-center gap-4 text-sm text-ash-300">
                         <button onClick={onSearch} className="hover:text-ash-50 transition-colors">
                             search
