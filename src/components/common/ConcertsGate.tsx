@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 
 export default function ConcertsGate() {
-    const { isConcertsAuthenticated, loginConcerts } = useAuth();
+    const { isConcertsAuthenticated, login, loginConcerts } = useAuth();
     const [password, setPassword] = useState("");
     const [hasError, setHasError] = useState(false);
 
@@ -13,6 +13,11 @@ export default function ConcertsGate() {
 
     function handleSubmit() {
         if (!password.trim()) return;
+
+        if (password === import.meta.env.VITE_SITE_PASSWORD) {
+            login();
+            return;
+        }
 
         if (password === import.meta.env.VITE_CONCERTS_PASSWORD) {
             loginConcerts();
