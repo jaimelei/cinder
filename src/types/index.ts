@@ -22,7 +22,7 @@ export interface Video {
     duration: string | null;
     duration_seconds: number | null;
     thumbnail_url: string | null;
-    upload_date: string | null;
+    upload_date: string;
     created_at: string;
     updated_at: string;
 }
