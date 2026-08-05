@@ -28,7 +28,13 @@ export function useSearch(collectionId?: string) {
                     collectionId
                 );
 
-                setResults(data);
+                setResults(
+                    [...data].sort(
+                        (a, b) =>
+                            new Date(b.upload_date).getTime() -
+                            new Date(a.upload_date).getTime()
+                    )
+                );
             } catch (error) {
                 console.error(error);
                 setResults([]);
