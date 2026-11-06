@@ -21,6 +21,30 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { PLAYLIST_MAP } from "./config";
 
 // ---------------------------------------------------------------------------
+// Safety limits (protect the daily 10,000-unit YouTube quota)
+// ---------------------------------------------------------------------------
+
+/** Max pages per playlist. 10 pages = 500 videos, far above your ~90-video playlists. */
+const MAX_PAGES = 10;
+
+/**
+ * Max YouTube API calls for the WHOLE run (all playlists + all video batches).
+ * A normal run is roughly 20–40 calls, so 120 leaves plenty of headroom while
+ * capping the worst case at ~120 quota units instead of 10,000.
+ */
+const MAX_API_CALLS_PER_RUN = 120;
+let apiCallCount = 0;
+
+function countApiCall(label: string): void {
+    apiCallCount++;
+    if (apiCallCount > MAX_API_CALLS_PER_RUN) {
+        throw new Error(
+            `YouTube API call budget exceeded (${MAX_API_CALLS_PER_RUN}) at ${label} — aborting to protect quota`
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -123,15 +147,31 @@ async function getAccessToken(
 // YouTube API helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Fetches every item in a playlist.
+ *
+ * Throws (instead of returning a partial list) if pagination looks broken,
+ * because the caller deletes any rows missing from this list — a truncated
+ * result would wipe real data.
+ */
 async function fetchPlaylistItems(
     playlistId: string,
     accessToken: string,
     apiKey: string
 ): Promise<PlaylistItem[]> {
     const items: PlaylistItem[] = [];
+    const seenTokens = new Set<string>();
+    const seenIds = new Set<string>();
     let pageToken: string | undefined;
+    let pages = 0;
 
     do {
+        pages++;
+        if (pages > MAX_PAGES) {
+            throw new Error(`playlist ${playlistId}: more than ${MAX_PAGES} pages, aborting`);
+        }
+        countApiCall(`playlistItems ${playlistId} page ${pages}`);
+
         const params = new URLSearchParams({
             part: "snippet,contentDetails",
             playlistId,
@@ -161,7 +201,22 @@ async function fetchPlaylistItems(
             }>;
         };
 
-        for (const item of data.items ?? []) {
+        const pageItems = data.items ?? [];
+        console.log(
+            `[${playlistId}] page ${pages}: ${pageItems.length} items, next=${data.nextPageToken ?? "none"}`
+        );
+
+        // Guard 1: a page with no items but a next token means something is wrong.
+        if (data.nextPageToken && pageItems.length === 0) {
+            throw new Error(`playlist ${playlistId}: empty page with a next token, aborting`);
+        }
+
+        let fresh = 0;
+        for (const item of pageItems) {
+            if (seenIds.has(item.id)) continue;
+            seenIds.add(item.id);
+            fresh++;
+
             if (!item.contentDetails?.videoId) continue;
             items.push({
                 youtubeId: item.contentDetails.videoId,
@@ -170,7 +225,16 @@ async function fetchPlaylistItems(
             });
         }
 
-        pageToken = data.nextPageToken;
+        const next = data.nextPageToken;
+
+        // Guard 2: a repeated token, or a page that only contained items we
+        // already saw, means pagination is looping.
+        if (next && (seenTokens.has(next) || (pageItems.length > 0 && fresh === 0))) {
+            throw new Error(`playlist ${playlistId}: pagination is repeating, aborting`);
+        }
+        if (next) seenTokens.add(next);
+
+        pageToken = next;
     } while (pageToken);
 
     return items;
@@ -199,6 +263,8 @@ async function fetchVideoDetails(
         Array.from({ length: Math.ceil(youtubeIds.length / BATCH) }, (_, i) =>
             youtubeIds.slice(i * BATCH, (i + 1) * BATCH)
         ).map(async (batch) => {
+            countApiCall(`videos batch of ${batch.length}`);
+
             const params = new URLSearchParams({
                 part: "snippet,contentDetails",
                 id: batch.join(","),
@@ -580,6 +646,7 @@ async function main(): Promise<void> {
 
     // Summary
     console.log("\n--- sync summary ---");
+    console.log(`youtube api calls this run: ${apiCallCount}`);
     const colW = 14;
     console.log(
         "collection".padEnd(colW),

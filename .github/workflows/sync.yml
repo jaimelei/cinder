@@ -3,9 +3,16 @@ name: sync youtube metadata
 on:
   workflow_dispatch:
 
+# Never run two syncs at the same time (e.g. cron fires while a run is still going)
+concurrency:
+  group: youtube-sync
+  cancel-in-progress: false
+
 jobs:
   sync:
     runs-on: ubuntu-latest
+    # A normal run takes seconds. Kill anything that runs longer than this.
+    timeout-minutes: 5
 
     steps:
       - name: checkout repository
