@@ -150,16 +150,20 @@ async function getAccessToken(
 /**
  * Fetches every item in a playlist.
  *
- * Throws (instead of returning a partial list) if pagination looks broken,
- * because the caller deletes any rows missing from this list — a truncated
- * result would wipe real data.
+ * Returns { items, complete }. `complete` is false when YouTube's pagination
+ * ended abnormally (an empty page that still carries a next token). In that
+ * case the list may be missing videos, so the caller must NOT treat videos
+ * absent from it as removed.
+ *
+ * Still throws if pagination loops on non-empty pages or exceeds MAX_PAGES.
  */
 async function fetchPlaylistItems(
     playlistId: string,
     accessToken: string,
     apiKey: string
-): Promise<PlaylistItem[]> {
+): Promise<{ items: PlaylistItem[]; complete: boolean }> {
     const items: PlaylistItem[] = [];
+    let complete = true;
     const seenTokens = new Set<string>();
     const seenIds = new Set<string>();
     let pageToken: string | undefined;
@@ -206,9 +210,23 @@ async function fetchPlaylistItems(
             `[${playlistId}] page ${pages}: ${pageItems.length} items, next=${data.nextPageToken ?? "none"}`
         );
 
-        // Guard 1: a page with no items but a next token means something is wrong.
-        if (data.nextPageToken && pageItems.length === 0) {
-            throw new Error(`playlist ${playlistId}: empty page with a next token, aborting`);
+        // YouTube quirk seen on the "unscripted" playlist: after the last page
+        // that returns items, the API still hands back a nextPageToken, and the
+        // next page comes back EMPTY with the same token again. The old loop
+        // followed that forever. Stop here, but mark the result incomplete: the
+        // API returned fewer videos than the playlist really has, so the caller
+        // must not treat videos missing from this list as removed.
+        if (pageItems.length === 0) {
+            if (data.nextPageToken) {
+                if (items.length === 0) {
+                    throw new Error(`playlist ${playlistId}: first page empty but has a next token, aborting`);
+                }
+                complete = false;
+                console.warn(
+                    `[${playlistId}] empty page with a stuck next token — stopping with ${items.length} items (list may be incomplete)`
+                );
+            }
+            break;
         }
 
         let fresh = 0;
@@ -237,7 +255,7 @@ async function fetchPlaylistItems(
         pageToken = next;
     } while (pageToken);
 
-    return items;
+    return { items, complete };
 }
 
 function parseDurationSeconds(iso: string): number | null {
@@ -509,11 +527,12 @@ async function syncCollection(
         }
 
         // Fetch playlist + existing state in parallel
-        const [playlistItems, existingCVRows] = await Promise.all([
+        const [playlistFetch, existingCVRows] = await Promise.all([
             fetchPlaylistItems(playlistId, accessToken, apiKey),
             getCollectionVideos(supabase, collection.id),
         ]);
 
+        const playlistItems = playlistFetch.items;
         const youtubeIds = playlistItems.map((i) => i.youtubeId);
         const detailsMap = await fetchVideoDetails(youtubeIds, accessToken, apiKey);
 
@@ -569,12 +588,32 @@ async function syncCollection(
         // Determine removals
         const toRemoveIds: string[] = [];
         const toRemoveVideoIds: string[] = [];
+        const toRemoveYoutubeIds: string[] = [];
         for (const [ytId, cv] of existingByYoutubeId.entries()) {
             if (!incomingYoutubeIds.has(ytId)) {
                 toRemoveIds.push(cv.id);
                 toRemoveVideoIds.push(cv.video_id);
+                toRemoveYoutubeIds.push(ytId);
                 result.removed++;
             }
+        }
+
+        // If YouTube's answer was incomplete we can't tell "removed from the
+        // playlist" apart from "the API just didn't return it". Keep everything
+        // and report which videos were missing so they can be investigated.
+        if (!playlistFetch.complete) {
+            console.log(
+                `::warning::[${slug}] YouTube returned an incomplete playlist (stuck page token). ` +
+                `Nothing removed. ${toRemoveYoutubeIds.length} video(s) in Supabase were not returned by the API: ${toRemoveYoutubeIds.join(", ") || "none"}`
+            );
+            toRemoveIds.length = 0;
+            toRemoveVideoIds.length = 0;
+            toRemoveYoutubeIds.length = 0;
+            result.removed = 0;
+        }
+
+        if (toRemoveYoutubeIds.length > 0) {
+            console.log(`[${slug}] removing: ${toRemoveYoutubeIds.join(", ")}`);
         }
 
         // Execute all writes in parallel
