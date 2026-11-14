@@ -21,7 +21,7 @@ export async function getCollectionBySlug(
         .from("cinder_collections")
         .select("*")
         .eq("slug", slug)
-        .single();
+        .maybeSingle();
 
     if (error) {
         throw error;

@@ -56,3 +56,19 @@ export interface CollectionMeta {
     accentColor: string;
     glowColor: string;
 }
+
+export interface PandoraVideo {
+    id: string;
+    youtube_id: string;
+    title: string;
+    description: string | null;
+    channel_name: string | null;
+    channel_id: string | null;
+    duration: string | null;
+    duration_seconds: number | null;
+    thumbnail_url: string | null;
+    upload_date: string;
+    group_tag: string;
+    member_tag: string | null;
+    created_at: string;
+}

@@ -1,11 +1,13 @@
 import { Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import ConcertsGate from "./components/common/ConcertsGate";
+import PandoraGate from "./components/common/PandoraGate";
 import AppLayout from "./components/layout/AppLayout";
 import LandingPage from "./pages/landing-page";
 import Home from "./pages/home";
 import CollectionPage from "./pages/collection";
 import ConcertsPage from "./pages/concerts";
+import PandoraPage from "./pages/pandora";
 import { AuthProvider } from "./hooks/useAuth";
 
 export default function App() {
@@ -20,6 +22,16 @@ export default function App() {
             <Route
               path="/app/concerts"
               element={<ConcertsPage />}
+            />
+          </Route>
+        </Route>
+
+        {/* pandora — separate auth: cinder OR pandora password */}
+        <Route element={<PandoraGate />}>
+          <Route element={<AppLayout />}>
+            <Route
+              path="/pandora"
+              element={<PandoraPage />}
             />
           </Route>
         </Route>

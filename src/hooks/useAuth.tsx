@@ -2,14 +2,18 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 
 const AUTH_KEY = "cinder_auth";
 const CONCERTS_AUTH_KEY = "cinder_concerts_auth";
+const PANDORA_AUTH_KEY = "cinder_pandora_auth";
 
 interface AuthContextValue {
     isAuthenticated: boolean;
     isConcertsAuthenticated: boolean;
+    isPandoraAuthenticated: boolean;
     login: () => void;
     loginConcerts: () => void;
+    loginPandora: () => void;
     logout: () => void;
     logoutConcerts: () => void;
+    logoutPandora: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -21,6 +25,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isConcertsAuthed, setIsConcertsAuthed] = useState(
         () => localStorage.getItem(CONCERTS_AUTH_KEY) === "true"
     );
+    const [isPandoraAuthed, setIsPandoraAuthed] = useState(
+        () => localStorage.getItem(PANDORA_AUTH_KEY) === "true"
+    );
 
     function login() {
         localStorage.setItem(AUTH_KEY, "true");
@@ -30,6 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     function loginConcerts() {
         localStorage.setItem(CONCERTS_AUTH_KEY, "true");
         setIsConcertsAuthed(true);
+    }
+
+    function loginPandora() {
+        localStorage.setItem(PANDORA_AUTH_KEY, "true");
+        setIsPandoraAuthed(true);
     }
 
     function logout() {
@@ -44,17 +56,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsConcertsAuthed(false);
     }
 
+    function logoutPandora() {
+        localStorage.removeItem(PANDORA_AUTH_KEY);
+        setIsPandoraAuthed(false);
+    }
+
     const isConcertsAuthenticated = isAuthenticated || isConcertsAuthed;
+    const isPandoraAuthenticated = isPandoraAuthed;
 
     return (
         <AuthContext.Provider
             value={{
                 isAuthenticated,
                 isConcertsAuthenticated,
+                isPandoraAuthenticated,
                 login,
                 loginConcerts,
+                loginPandora,
                 logout,
                 logoutConcerts,
+                logoutPandora,
             }}
         >
             {children}
